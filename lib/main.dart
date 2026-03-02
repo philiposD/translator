@@ -23,9 +23,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
+      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
@@ -33,7 +31,6 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
-
 
   final String title;
 
@@ -75,24 +72,22 @@ class _MyHomePageState extends State<MyHomePage> {
     if (!isInstalled) {
       setState(() => text = "Downloading AI 'Brain' (1.2GB)...");
 
-      await gemma.FlutterGemma.installModel(
-        modelType: gemma.ModelType.gemmaIt,
-      ).fromNetwork(
-        // 'https://huggingface.co/google/gemma-3-1b-it/resolve/main/gemma-3-1b-it-gpu-int4.task',
-        // 'https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.task',
-        'https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task',
-        token: 'YOUR_HF_TOKEN',
-      ).withProgress((progress) {
-        // Update UI with the actual download percentage
-        setState(() => text = "Downloading: ${progress}%");
-      }).install();
+      await gemma.FlutterGemma.installModel(modelType: gemma.ModelType.gemmaIt)
+          .fromNetwork(
+            // 'https://huggingface.co/google/gemma-3-1b-it/resolve/main/gemma-3-1b-it-gpu-int4.task',
+            // 'https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.task',
+            'https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task',
+            token: 'YOUR_HF_TOKEN',
+          )
+          .withProgress((progress) {
+            // Update UI with the actual download percentage
+            setState(() => text = "Downloading: ${progress}%");
+          })
+          .install();
 
       setState(() => text = "AI Installed! Ready to translate.");
     } else {
-
-      await gemma.FlutterGemma.installModel(
-        modelType: gemma.ModelType.gemmaIt,
-      ).fromBundled(gemmaModelId).install();
+      await gemma.FlutterGemma.installModel(modelType: gemma.ModelType.gemmaIt).fromBundled(gemmaModelId).install();
 
       setState(() => text = "AI is ready (Offline mode)");
     }
@@ -104,61 +99,63 @@ class _MyHomePageState extends State<MyHomePage> {
 
     setState(() => text = "Extracting text...");
 
-    // --- 1. OCR (Same as before) ---
+    // --- 1. OCR (Standard) ---
     final inputImage = InputImage.fromFilePath(image.path);
     final textRecognizer = TextRecognizer(script: TextRecognitionScript.chinese);
     final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
 
-    final String fullChineseText = recognizedText.blocks
-        .map((block) => block.text)
-        .join(' ')
-        .replaceAll('\n', ' ');
+    final String fullChineseText = recognizedText.blocks.map((block) => block.text).join(' ').replaceAll('\n', ' ');
 
-    if (fullChineseText.isEmpty) {
-      setState(() => text = "No text found");
+    final String cleanedText = fullChineseText
+        .replaceAll(RegExp(r'https?://\S+'), '') // Remove URLs
+        .replaceAll(RegExp(r'\d{10,}'), '') // Remove long serial numbers
+        .trim();
+
+    if (cleanedText.isEmpty) {
+      setState(() => text = "No text found in image.");
       return;
     }
 
-    // --- 2. LLM Translation (New flutter_gemma API) ---
+    // --- 2. LLM Streaming Translation ---
     try {
-      setState(() => text = "Translating with Gemma...");
+      setState(() => text = ""); // Clear text for new translation
 
-      // Get the inference engine
       final model = await gemma.FlutterGemma.getActiveModel(
-        maxTokens: 2048,
-        preferredBackend: gemma.PreferredBackend.cpu, // Use GPU for speed
-        supportImage: false
+        maxTokens: 1024, // Lower tokens = faster first-word latency
+        preferredBackend: gemma.PreferredBackend.gpu, // Use GPU for flagship performance
+        supportImage: false,
       );
 
-// --- CORRECTED LLM TRANSLATION LOGIC ---
-// 1. Create the session
+      // Inside your pickImage try block:
       final session = await model.createSession();
 
-// 2. Feed the prompt into the session history
-      await session.addQueryChunk(gemma.Message.text(
-        text: "Translate the following Chinese text to English naturally: $fullChineseText",
-        isUser: true,
-      ));
+      await session.addQueryChunk(
+        gemma.Message.text(text: "Translate this menu to English clearly: $cleanedText", isUser: true),
+      );
 
-// 3. Call getResponse() with ZERO arguments
-      final String response = await session.getResponse();
+      final stream = session.getResponseAsync();
+      String buffer = "";
 
-      setState(() {
-        text = response.trim();
-      });
+      await for (final chunk in stream) {
+        buffer += chunk;
+        // Use a frames-per-second optimization: update UI only if the buffer changed significantly
+        // or use a microtask to avoid flooding the UI thread
+        setState(() {
+          text = buffer;
+        });
+      }
 
-      // Always close sessions to free up memory
       await session.close();
       await model.close();
     } catch (e) {
       setState(() => text = "Translation Error: $e");
-      print("Gemma Error: $e");
     } finally {
       textRecognizer.close();
     }
   }
-  void _incrementCounter()  {
-    setState(()  {
+
+  void _incrementCounter() {
+    setState(() {
       _counter++;
     });
 
@@ -168,20 +165,14 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
+      appBar: AppBar(backgroundColor: Theme.of(context).colorScheme.inversePrimary, title: Text(widget.title)),
       body: Center(
         child: ListView(
           // mainAxisAlignment: .center,
           children: [
             const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            Text(text)
+            Text('$_counter', style: Theme.of(context).textTheme.headlineMedium),
+            Text(text),
           ],
         ),
       ),
