@@ -32,9 +32,15 @@ class TranslationPresenter extends ChangeNotifier {
     ),
     TranslationModelInfo(
       id: 'qwen2.5-1.5b-instruct-q4_k_m.task',
-      name: 'Qwen 2.5 Instruct (1.5B)',
+      name: 'Qwen 2.5 Instruct (1.5B) - Network',
       downloadUrl: 'https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.task',
       isGemma: false, // You might need a different gemma.ModelType for this if it's supported
+    ),
+    TranslationModelInfo(
+      id: 'qwen2_5_0_5b.task',
+      name: 'Qwen 2.5 (0.5B) - Local Asset',
+      assetPath: 'assets/qwen2_5_0_5b.task',
+      isGemma: false,
     ),
   ];
 
@@ -54,12 +60,18 @@ class TranslationPresenter extends ChangeNotifier {
   Future<List<TranslationModelInfo>> _verifyModelsAvailability(List<TranslationModelInfo> models) async {
     List<TranslationModelInfo> verified = [];
     for (var model in models) {
+      if (model.isLocalAsset) {
+        verified.add(model);
+        continue;
+      }
       try {
-        final response = await http.head(Uri.parse(model.downloadUrl));
-        // A 200 or 302 (redirect) indicates the URL is likely good
-        if (response.statusCode == 200 || response.statusCode == 302 || response.statusCode == 401) {
-            // 401 means auth is needed, but the model exists
-            verified.add(model);
+        if (model.downloadUrl != null) {
+          final response = await http.head(Uri.parse(model.downloadUrl!));
+          // A 200 or 302 (redirect) indicates the URL is likely good
+          if (response.statusCode == 200 || response.statusCode == 302 || response.statusCode == 401) {
+              // 401 means auth is needed, but the model exists
+              verified.add(model);
+          }
         }
       } catch (e) {
         debugPrint("Failed to verify model ${model.name}: $e");
@@ -98,7 +110,7 @@ class TranslationPresenter extends ChangeNotifier {
         _setStatus("AI Ready. Tap + to translate.");
         isModelReady = true;
       } else {
-        _setStatus("Model not downloaded. Select below to download.");
+        _setStatus(selectedModel!.isLocalAsset ? "Model needs extraction. Select below to prepare." : "Model not downloaded. Select below to download.");
         isModelReady = false;
       }
     } catch (e) {
@@ -113,24 +125,29 @@ class TranslationPresenter extends ChangeNotifier {
     if (selectedModel == null || isWorking) return;
 
     _setWorking(true);
-    _setStatus("Downloading AI...");
+    _setStatus(selectedModel!.isLocalAsset ? "Extracting local AI model..." : "Downloading AI...");
     downloadProgress = 0.0;
     notifyListeners();
 
     try {
       final modelType = selectedModel!.isGemma ? gemma.ModelType.gemmaIt : gemma.ModelType.qwen;
+      final builder = gemma.FlutterGemma.installModel(modelType: modelType);
 
-      await gemma.FlutterGemma.installModel(modelType: modelType)
-          .fromNetwork(
-            selectedModel!.downloadUrl,
-            token: selectedModel!.token.isNotEmpty ? selectedModel!.token : null,
-          )
-          .withProgress((progress) {
-            downloadProgress = progress / 100.0;
-            _setStatus("Downloading: $progress%");
-            notifyListeners();
-          })
-          .install();
+      if (selectedModel!.isLocalAsset) {
+        await builder.fromAsset(selectedModel!.assetPath!).install();
+      } else {
+        await builder
+            .fromNetwork(
+              selectedModel!.downloadUrl!,
+              token: selectedModel!.token.isNotEmpty ? selectedModel!.token : null,
+            )
+            .withProgress((progress) {
+              downloadProgress = progress / 100.0;
+              _setStatus("Downloading: $progress%");
+              notifyListeners();
+            })
+            .install();
+      }
 
       _setStatus("AI Installed! Ready to translate.");
       isModelReady = true;
@@ -183,9 +200,12 @@ class TranslationPresenter extends ChangeNotifier {
       if (!hasActive) {
           // Fallback cache hit "install"
           final modelType = selectedModel!.isGemma ? gemma.ModelType.gemmaIt : gemma.ModelType.qwen;
-          await gemma.FlutterGemma.installModel(modelType: modelType)
-              .fromNetwork(selectedModel!.downloadUrl, token: selectedModel!.token.isNotEmpty ? selectedModel!.token : null)
-              .install();
+          final builder = gemma.FlutterGemma.installModel(modelType: modelType);
+          if (selectedModel!.isLocalAsset) {
+            await builder.fromAsset(selectedModel!.assetPath!).install();
+          } else {
+            await builder.fromNetwork(selectedModel!.downloadUrl!, token: selectedModel!.token.isNotEmpty ? selectedModel!.token : null).install();
+          }
       }
 
       final model = await gemma.FlutterGemma.getActiveModel(

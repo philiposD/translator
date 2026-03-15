@@ -122,8 +122,8 @@ class MyHomePage extends StatelessWidget {
           const SizedBox(height: 12),
           ElevatedButton.icon(
             onPressed: presenter.downloadSelectedModel,
-            icon: const Icon(Icons.download),
-            label: const Text('Download Model'),
+            icon: Icon(presenter.selectedModel!.isLocalAsset ? Icons.folder : Icons.download),
+            label: Text(presenter.selectedModel!.isLocalAsset ? 'Extract Local Model' : 'Download Model'),
           ),
         ],
         if (presenter.downloadProgress != null) ...[
