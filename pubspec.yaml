@@ -39,6 +39,7 @@ dependencies:
   google_mlkit_translation: any
   provider: any
   flutter_gemma: any
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
