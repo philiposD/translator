@@ -215,19 +215,32 @@ class TranslationPresenter extends ChangeNotifier {
       }
 
       final model = await gemma.FlutterGemma.getActiveModel(
-        maxTokens: 1024,
+        maxTokens: 2048,
         preferredBackend: gemma.PreferredBackend.cpu,
         supportImage: false,
       );
 
       final session = await model.createSession();
 
-      await session.addQueryChunk(
-        gemma.Message.text(
-          text: "Translate the following Chinese text to English naturally: $cleanedText",
-          isUser: true,
-        ),
-      );
+      final prompt =
+          """
+            Translate the Chinese text into English line by line. 
+            You must follow this strict format for every single line: Translated English || Original Chinese.
+            Keep arabic numbers exactly as they are.
+            
+            Example Input:
+            苹果汁 5 RMB
+            炒饭 15 RMB
+            
+            Example Output:
+            Apple juice 5 RMB || 苹果汁 5 RMB
+            Fried rice 15 RMB || 炒饭 15 RMB
+            
+            Translate this text using the exact format above:
+            $cleanedText
+        """;
+
+      await session.addQueryChunk(gemma.Message.text(text: prompt, isUser: true));
 
       // For full text, but you have to wait. Stream output is better for readability.
       // final text = await session.getResponse();
