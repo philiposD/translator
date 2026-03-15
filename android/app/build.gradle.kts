@@ -37,10 +37,6 @@ android {
         versionName = flutter.versionName
     }
 
-    aaptOptions {
-        noCompress "task"
-    }
-
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")

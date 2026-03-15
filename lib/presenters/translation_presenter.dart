@@ -28,16 +28,14 @@ class TranslationPresenter extends ChangeNotifier {
       name: 'Gemma 3 Instruct (E4B)',
       downloadUrl:
           'https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task',
-      token: 'YOUR_HF_TOKEN',
+      token: 'YOURTOKEN',
       isGemma: true,
     ),
     TranslationModelInfo(
       id: 'qwen2_5_0_5b.task',
       name: 'Qwen 2.5 Instruct (0.5B) - Network',
-      downloadUrl:
-          'https://translator-models.s3.ap-southeast-1.amazonaws.com/qwen2_5_0_5b.task',
-      isGemma:
-          false, // You might need a different gemma.ModelType for this if it's supported
+      downloadUrl: 'https://translator-models.s3.ap-southeast-1.amazonaws.com/qwen2_5_0_5b.task',
+      isGemma: false, // You might need a different gemma.ModelType for this if it's supported
     ),
     TranslationModelInfo(
       id: 'qwen2_5_0_5b.task',
@@ -60,9 +58,7 @@ class TranslationPresenter extends ChangeNotifier {
     }
   }
 
-  Future<List<TranslationModelInfo>> _verifyModelsAvailability(
-    List<TranslationModelInfo> models,
-  ) async {
+  Future<List<TranslationModelInfo>> _verifyModelsAvailability(List<TranslationModelInfo> models) async {
     List<TranslationModelInfo> verified = [];
     for (var model in models) {
       if (model.isLocalAsset) {
@@ -73,9 +69,7 @@ class TranslationPresenter extends ChangeNotifier {
         if (model.downloadUrl != null) {
           final response = await http.head(Uri.parse(model.downloadUrl!));
           // A 200 or 302 (redirect) indicates the URL is likely good
-          if (response.statusCode == 200 ||
-              response.statusCode == 302 ||
-              response.statusCode == 401) {
+          if (response.statusCode == 200 || response.statusCode == 302 || response.statusCode == 401) {
             // 401 means auth is needed, but the model exists
             verified.add(model);
           }
@@ -104,9 +98,7 @@ class TranslationPresenter extends ChangeNotifier {
     isModelReady = false;
 
     try {
-      bool isInstalled = await gemma.FlutterGemma.isModelInstalled(
-        selectedModel!.id,
-      );
+      bool isInstalled = await gemma.FlutterGemma.isModelInstalled(selectedModel!.id);
 
       if (isInstalled) {
         // We set it as active by installing from bundled if it's the bundled name, or from file?
@@ -138,18 +130,12 @@ class TranslationPresenter extends ChangeNotifier {
     if (selectedModel == null || isWorking) return;
 
     _setWorking(true);
-    _setStatus(
-      selectedModel!.isLocalAsset
-          ? "Extracting local AI model..."
-          : "Downloading AI...",
-    );
+    _setStatus(selectedModel!.isLocalAsset ? "Extracting local AI model..." : "Downloading AI...");
     downloadProgress = 0.0;
     notifyListeners();
 
     try {
-      final modelType = selectedModel!.isGemma
-          ? gemma.ModelType.gemmaIt
-          : gemma.ModelType.qwen;
+      final modelType = selectedModel!.isGemma ? gemma.ModelType.gemmaIt : gemma.ModelType.qwen;
       final builder = gemma.FlutterGemma.installModel(modelType: modelType);
 
       if (selectedModel!.isLocalAsset) {
@@ -158,9 +144,7 @@ class TranslationPresenter extends ChangeNotifier {
         await builder
             .fromNetwork(
               selectedModel!.downloadUrl!,
-              token: selectedModel!.token.isNotEmpty
-                  ? selectedModel!.token
-                  : null,
+              token: selectedModel!.token.isNotEmpty ? selectedModel!.token : null,
             )
             .withProgress((progress) {
               downloadProgress = progress / 100.0;
@@ -192,20 +176,13 @@ class TranslationPresenter extends ChangeNotifier {
     translationOutput = "";
     notifyListeners();
 
-    final textRecognizer = TextRecognizer(
-      script: TextRecognitionScript.chinese,
-    );
+    final textRecognizer = TextRecognizer(script: TextRecognitionScript.chinese);
 
     try {
       final inputImage = InputImage.fromFilePath(image.path);
-      final RecognizedText recognizedText = await textRecognizer.processImage(
-        inputImage,
-      );
+      final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
 
-      final String fullChineseText = recognizedText.blocks
-          .map((block) => block.text)
-          .join(' ')
-          .replaceAll('\n', ' ');
+      final String fullChineseText = recognizedText.blocks.map((block) => block.text).join(' ').replaceAll('\n', ' ');
 
       final String cleanedText = fullChineseText
           .replaceAll(RegExp(r'https?://\S+'), '')
@@ -227,9 +204,7 @@ class TranslationPresenter extends ChangeNotifier {
       final bool hasActive = gemma.FlutterGemma.hasActiveModel();
       if (!hasActive) {
         // Fallback cache hit "install"
-        final modelType = selectedModel!.isGemma
-            ? gemma.ModelType.gemmaIt
-            : gemma.ModelType.qwen;
+        final modelType = selectedModel!.isGemma ? gemma.ModelType.gemmaIt : gemma.ModelType.qwen;
         final builder = gemma.FlutterGemma.installModel(modelType: modelType);
         if (selectedModel!.isLocalAsset) {
           await builder.fromAsset(selectedModel!.assetPath!).install();
@@ -237,9 +212,7 @@ class TranslationPresenter extends ChangeNotifier {
           await builder
               .fromNetwork(
                 selectedModel!.downloadUrl!,
-                token: selectedModel!.token.isNotEmpty
-                    ? selectedModel!.token
-                    : null,
+                token: selectedModel!.token.isNotEmpty ? selectedModel!.token : null,
               )
               .install();
         }
@@ -254,10 +227,7 @@ class TranslationPresenter extends ChangeNotifier {
       final session = await model.createSession();
 
       await session.addQueryChunk(
-        gemma.Message.text(
-          text: "Translate this menu to English clearly: $cleanedText",
-          isUser: true,
-        ),
+        gemma.Message.text(text: "Translate this menu to English clearly: $cleanedText", isUser: true),
       );
 
       final stream = session.getResponseAsync();
