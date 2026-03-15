@@ -22,8 +22,9 @@ class TranslationModelInfo {
       identical(this, other) ||
       other is TranslationModelInfo &&
           runtimeType == other.runtimeType &&
-          id == other.id;
+          id == other.id &&
+          name == other.name;
 
   @override
-  int get hashCode => id.hashCode;
+  int get hashCode => Object.hash(id, name);
 }

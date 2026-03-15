@@ -10,59 +10,49 @@ class MyHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // In stateless widgets, we can use context.watch to rebuild on changes
     final presenter = context.watch<TranslationPresenter>();
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(title),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Model Selection
-              const Text(
-                'Select Translation Model:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              _buildDropdown(presenter),
-              const SizedBox(height: 16),
+      appBar: AppBar(backgroundColor: Theme.of(context).colorScheme.inversePrimary, title: Text(title)),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 1. Model Selection
+                const Text('Select Translation Model:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 8),
+                _buildDropdown(presenter),
+                const SizedBox(height: 16),
 
-              // 2. Status / Progress
-              _buildStatusArea(presenter),
-              const SizedBox(height: 24),
+                // 2. Status / Progress
+                _buildStatusArea(presenter),
+                const SizedBox(height: 24),
 
-              // 3. Translation Output
-              const Text(
-                'Translation Output:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: SingleChildScrollView(
-                    child: Text(
-                      presenter.translationOutput.isNotEmpty
-                          ? presenter.translationOutput
-                          : '...',
-                      style: const TextStyle(fontSize: 16),
+                // 3. Translation Output
+                const Text('Translation Output:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        presenter.translationOutput.isNotEmpty ? presenter.translationOutput : '...',
+                        style: const TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -96,13 +86,8 @@ class MyHomePage extends StatelessWidget {
                 presenter.selectModel(newValue);
               }
             },
-      items: presenter.availableModels
-          .map<DropdownMenuItem<TranslationModelInfo>>(
-              (TranslationModelInfo model) {
-        return DropdownMenuItem<TranslationModelInfo>(
-          value: model,
-          child: Text(model.name),
-        );
+      items: presenter.availableModels.map<DropdownMenuItem<TranslationModelInfo>>((TranslationModelInfo model) {
+        return DropdownMenuItem<TranslationModelInfo>(value: model, child: Text(model.name));
       }).toList(),
     );
   }
@@ -113,10 +98,7 @@ class MyHomePage extends StatelessWidget {
       children: [
         Text(
           presenter.statusText,
-          style: TextStyle(
-            color: presenter.isWorking ? Colors.blue : Colors.black87,
-            fontWeight: FontWeight.w500,
-          ),
+          style: TextStyle(color: presenter.isWorking ? Colors.blue : Colors.black87, fontWeight: FontWeight.w500),
         ),
         if (!presenter.isModelReady && !presenter.isWorking && presenter.selectedModel != null) ...[
           const SizedBox(height: 12),

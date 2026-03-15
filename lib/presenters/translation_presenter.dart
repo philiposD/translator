@@ -28,9 +28,10 @@ class TranslationPresenter extends ChangeNotifier {
       name: 'Gemma 3 Instruct (E4B)',
       downloadUrl:
           'https://huggingface.co/google/gemma-3n-E4B-it-litert-preview/resolve/main/gemma-3n-E4B-it-int4.task',
-      token: 'YOURTOKEN',
+      token: 'YOUR_HUGGINGFACE_TOKEN', // Optional: Only needed if the model is private
       isGemma: true,
     ),
+
     TranslationModelInfo(
       id: 'qwen2_5_0_5b.task',
       name: 'Qwen 2.5 Instruct (0.5B) - Network',
@@ -197,13 +198,8 @@ class TranslationPresenter extends ChangeNotifier {
 
       _setStatus("Translating...");
 
-      // The model was set active previously during download or cache initialization.
-      // However, to be safe, if we switch between two cached models, we might need to reinstall.
-      // Assuming user only uses one model at a time or the plugin manages multiple sessions gracefully via id.
-      // Active model mechanism in flutter_gemma works by taking the last installed one.
       final bool hasActive = gemma.FlutterGemma.hasActiveModel();
       if (!hasActive) {
-        // Fallback cache hit "install"
         final modelType = selectedModel!.isGemma ? gemma.ModelType.gemmaIt : gemma.ModelType.qwen;
         final builder = gemma.FlutterGemma.installModel(modelType: modelType);
         if (selectedModel!.isLocalAsset) {
@@ -220,15 +216,23 @@ class TranslationPresenter extends ChangeNotifier {
 
       final model = await gemma.FlutterGemma.getActiveModel(
         maxTokens: 1024,
-        preferredBackend: gemma.PreferredBackend.gpu,
+        preferredBackend: gemma.PreferredBackend.cpu,
         supportImage: false,
       );
 
       final session = await model.createSession();
 
       await session.addQueryChunk(
-        gemma.Message.text(text: "Translate this menu to English clearly: $cleanedText", isUser: true),
+        gemma.Message.text(
+          text: "Translate the following Chinese text to English naturally: $cleanedText",
+          isUser: true,
+        ),
       );
+
+      // For full text, but you have to wait. Stream output is better for readability.
+      // final text = await session.getResponse();
+      // translationOutput = text;
+      // notifyListeners();
 
       final stream = session.getResponseAsync();
       String buffer = "";
@@ -236,6 +240,7 @@ class TranslationPresenter extends ChangeNotifier {
       await for (final chunk in stream) {
         buffer += chunk;
         translationOutput = buffer;
+
         notifyListeners();
       }
 
